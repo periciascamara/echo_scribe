@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSP removed for file:// protocol compatibility -->
+
+  <!-- SEO -->
+  <title>Echo Scribe — Transcrições em Documentos Profissionais</title>
+  <meta name="description"
+    content="Transforme transcrições brutas e áudios em relatórios periciais, resumos executivos e minutas jurídicas com IA.">
+  <meta name="author" content="Guilherme Camara — Editora Viva">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Echo Scribe — IA para Documentos Técnicos">
+  <meta property="og:description" content="Converta transcrições em documentos profissionais estruturados.">
+  <meta property="og:type" content="website">
+
+  <!-- Favicon -->
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎙️</text></svg>">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js"></script>
+</head>
+
+<body>
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ─── SETTINGS MODAL ──────────────────────── -->
+  <div id="settings-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Configurações">
+    <div class="modal-card glass-card">
+      <div class="modal-header">
+        <h2>⚙️ Configurações</h2>
+        <button id="modal-close-btn" class="btn btn-icon modal-close" type="button" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="section-label">
+          <span class="dot"></span>
+          <span>Conexão com IA</span>
+        </div>
+        <div class="api-key-bar">
+          <span class="icon">🔑</span>
+          <input type="password" id="api-key-input" class="api-key-input"
+            placeholder="Cole sua chave do Google AI Studio aqui..." autocomplete="off" spellcheck="false"
+            aria-label="Chave da API do Google AI Studio">
+          <button id="api-save-btn" class="btn btn-primary btn-sm" type="button">Conectar</button>
+          <button id="api-disconnect-btn" class="btn btn-danger btn-sm" type="button"
+            style="display: none;">Desconectar</button>
+        </div>
+        <div id="api-status" class="api-status">
+          <span class="status-dot"></span>
+          <span>Desconectado — insira sua chave do Google AI Studio</span>
+        </div>
+        <div class="modal-info">
+          <p>💡 Obtenha sua chave gratuitamente em <a href="https://aistudio.google.com/apikey" target="_blank"
+              rel="noopener">Google AI Studio</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── ROTEIRO EDIT MODAL ────────────────── -->
+  <div id="roteiro-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Editor de Roteiro">
+    <div class="modal-card glass-card modal-lg">
+      <div class="modal-header">
+        <h2 id="roteiro-modal-title">📋 Novo Roteiro</h2>
+        <button id="roteiro-modal-close" class="btn btn-icon modal-close" type="button" aria-label="Fechar">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="control-label" for="roteiro-name-input">Nome do Roteiro</label>
+          <input type="text" id="roteiro-name-input" class="form-input" placeholder="Ex: Perícia Médica — Ortopedia"
+            autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="control-label">Seções do Roteiro</label>
+          <div id="roteiro-sections-list" class="roteiro-sections-list"></div>
+          <button id="roteiro-add-section" class="btn btn-sm" type="button" style="margin-top: var(--space-sm);">➕
+            Adicionar Seção</button>
+        </div>
+        <div class="modal-actions">
+          <button id="roteiro-cancel-btn" class="btn" type="button">Cancelar</button>
+          <button id="roteiro-save-btn" class="btn btn-primary" type="button">💾 Salvar Roteiro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-container">
+
+    <!-- ─── HEADER ─────────────────────────────── -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">🎙️</div>
+        <div class="brand-text">
+          <h1>Echo Scribe</h1>
+          <p>Transcrições → Documentos Profissionais</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span
+          style="font-size: 0.68rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">v1.1.0</span>
+        <button id="settings-btn" class="btn btn-icon settings-btn" type="button" title="Configurações"
+          aria-label="Abrir configurações">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+            </path>
+          </svg>
+        </button>
+        <div id="header-status-dot" class="header-status-dot disconnected" title="Desconectado"></div>
+      </div>
+    </header>
+
+    <!-- ─── ROTEIRO MANAGER ─────────────────── -->
+    <section class="glass-card roteiro-section" aria-label="Roteiro de Entrevista">
+      <div class="section-label">
+        <span class="dot"></span>
+        <span>Roteiro de Entrevista</span>
+      </div>
+      <div class="roteiro-bar">
+        <div class="select-wrapper roteiro-select-wrapper">
+          <select id="roteiro-select" aria-label="Selecionar roteiro">
+            <option value="">— Sem roteiro —</option>
+          </select>
+        </div>
+        <div class="roteiro-actions">
+          <button id="roteiro-new-btn" class="btn btn-sm" type="button" title="Criar novo roteiro">➕ Novo</button>
+          <button id="roteiro-edit-btn" class="btn btn-sm" type="button" title="Editar roteiro selecionado" disabled>✏️
+            Editar</button>
+          <button id="roteiro-delete-btn" class="btn btn-sm btn-danger" type="button"
+            title="Excluir roteiro selecionado" disabled>🗑️</button>
+        </div>
+      </div>
+      <!-- Roteiro Preview -->
+      <div id="roteiro-preview" class="roteiro-preview" style="display: none;"></div>
+    </section>
+
+    <!-- ─── INPUT ──────────────────────────────── -->
+    <section class="glass-card" aria-label="Entrada de texto">
+      <div class="section-label">
+        <span class="dot"></span>
+        <span>Texto Bruto</span>
+      </div>
+      <div class="input-area">
+        <textarea id="input-textarea" class="input-textarea" placeholder="Cole aqui a transcrição bruta, anotações de campo ou texto desordenado...
+
+Exemplos:
+• Notas de uma vistoria pericial
+• Transcrição de uma reunião ou entrevista
+• Rascunho de contrato ou acordo
+• Anotações de uma aula ou palestra" spellcheck="true" aria-label="Campo de texto bruto para processamento"></textarea>
+        <div class="input-footer">
+          <span id="char-count" class="char-count">0 caracteres</span>
+          <div class="input-actions">
+            <button id="record-btn" class="btn btn-sm record-btn" type="button" title="Gravar áudio do microfone">
+              <span class="record-icon">🎙️</span>
+              <span id="record-label">Gravar Áudio</span>
+            </button>
+            <label class="file-upload-label" title="Carregar arquivo .txt ou .md">
+              📁 Carregar arquivo
+              <input type="file" id="file-input" accept=".txt,.md,.text" aria-label="Upload de arquivo de texto">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recording Indicator -->
+      <div id="recording-bar" class="recording-bar" style="display: none;">
+        <div class="recording-pulse"></div>
+        <span class="recording-text">Gravando...</span>
+        <span id="recording-timer" class="recording-timer">00:00</span>
+        <button id="stop-record-btn" class="btn btn-sm btn-danger" type="button">⏹ Parar</button>
+      </div>
+
+      <!-- Transcription Status -->
+      <div id="transcription-bar" class="transcription-bar" style="display: none;">
+        <span class="spinner-small"></span>
+        <span>Transcrevendo áudio com IA...</span>
+      </div>
+
+      <!-- Live Checklist (visible during recording with active roteiro) -->
+      <div id="live-checklist" class="live-checklist" style="display: none;">
+        <div class="checklist-header">
+          <span class="section-label" style="margin-bottom: 0;"><span class="dot"></span><span>Checklist do
+              Roteiro</span></span>
+          <span id="checklist-progress" class="checklist-progress">0/0</span>
+        </div>
+        <div class="checklist-progress-bar">
+          <div id="checklist-progress-fill" class="checklist-progress-fill" style="width: 0%;"></div>
+        </div>
+        <div id="checklist-items" class="checklist-items"></div>
+      </div>
+    </section>
+
+    <!-- ─── CONTROLS ───────────────────────────── -->
+    <section class="glass-card" aria-label="Controles de processamento">
+      <div class="controls-bar">
+        <div class="control-group">
+          <span class="control-label">Tipo de Documento</span>
+          <div class="select-wrapper">
+            <select id="template-select" aria-label="Tipo de documento"></select>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="control-label">Tom de Voz</span>
+          <div class="select-wrapper">
+            <select id="tone-select" aria-label="Tom de voz"></select>
+          </div>
+        </div>
+        <div class="controls-spacer"></div>
+        <button id="process-btn" class="btn btn-primary process-btn" type="button" disabled>
+          ✨ Refinar Escrita
+        </button>
+      </div>
+    </section>
+
+    <!-- ─── OUTPUT ─────────────────────────────── -->
+    <section class="glass-card output-section" aria-label="Documento processado">
+      <div class="output-toolbar">
+        <div class="section-label" style="margin-bottom: 0;">
+          <span class="dot"></span>
+          <span>Resultado</span>
+        </div>
+        <div class="output-toolbar-actions">
+          <button id="copy-btn" class="btn btn-sm" type="button" title="Copiar para área de transferência">
+            📋 Copiar
+          </button>
+          <button id="download-btn" class="btn btn-sm" type="button" title="Baixar como arquivo .md">
+            ⬇️ Baixar .md
+          </button>
+          <button id="clear-btn" class="btn btn-sm" type="button" title="Limpar resultado">
+            🗑️ Limpar
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading Skeleton -->
+      <div id="skeleton-loader" class="skeleton-loader">
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+      </div>
+
+      <!-- Output Content -->
+      <div id="output-content" class="output-content empty" data-raw-markdown="">
+        <span>O documento processado aparecerá aqui...</span>
+      </div>
+    </section>
+
+    <!-- ─── QUICK GUIDE ────────────────────────── -->
+    <section class="guide-section" aria-label="Guia rápido">
+      <div class="section-label" style="margin-bottom: var(--space-lg);">
+        <span class="dot"></span>
+        <span>Como Funciona</span>
+      </div>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <div class="step-number">1</div>
+          <div class="step-icon">📝</div>
+          <h4>Input</h4>
+          <p>Cole texto bruto, carregue um .txt ou grave áudio</p>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">2</div>
+          <div class="step-icon">⚙️</div>
+          <h4>Configure</h4>
+          <p>Escolha o tipo de documento e o tom de voz</p>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">3</div>
+          <div class="step-icon">🤖</div>
+          <h4>Processamento</h4>
+          <p>A IA limpa, organiza e estrutura o conteúdo</p>
+        </div>
+        <div class="guide-step">
+          <div class="step-number">4</div>
+          <div class="step-icon">📤</div>
+          <h4>Entrega</h4>
+          <p>Copie ou baixe o documento finalizado</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── FOOTER ─────────────────────────────── -->
+    <footer class="app-footer">
+      <span>Echo Scribe v1.1.0 • Motor: Gemini 2.0 Flash</span>
+      <span>
+        Suporte: <a href="mailto:contatos@editoraviva.art.br">contatos@editoraviva.art.br</a>
+      </span>
+    </footer>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       APPLICATION SCRIPTS (inline for file:// compatibility)
+       ═══════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      'use strict';
+
+      // ============================================
+      // PROMPTS MODULE
+      // ============================================
+      const TEMPLATES = {
+        relatorio: {
+          label: 'Relatório Pericial',
+          icon: '📋',
+          description: 'Laudo técnico com metodologia e constatações',
+        },
+        resumo: {
+          label: 'Resumo Executivo',
+          icon: '📊',
+          description: 'Síntese objetiva com pontos-chave',
+        },
+        minuta: {
+          label: 'Minuta Jurídica',
+          icon: '⚖️',
+          description: 'Documento formal com cláusulas estruturadas',
+        },
+      };
+
+      const TONES = {
+        tecnico: { label: 'Técnico', icon: '🔬' },
+        formal: { label: 'Formal', icon: '🎩' },
+      };
+
+      const SYSTEM_PROMPTS = {
+        relatorio: `Você é um redator técnico especializado em laudos periciais. 
+Sua tarefa é transformar o texto bruto fornecido em um Relatório Pericial/Laudo de Constatação profissional e estruturado.
+
+O documento DEVE seguir esta estrutura em Markdown:
+
+# [Título do Laudo]
+
+## 1. Objeto
+Descreva o objeto da perícia/vistoria.
+
+## 2. Metodologia
+Relate os métodos e procedimentos utilizados.
+
+## 3. Constatações
+Organize as constatações em subtópicos claros, numerados. Cada ponto deve ser factual.
+
+## 4. Análise Técnica
+Se aplicável, cruze as constatações com normas ou referências técnicas.
+
+## 5. Conclusão
+Sintetize os achados de forma objetiva.
+
+## 6. Encerramento
+Inclua local, data e campo para assinatura do responsável técnico.
+
+---
+*Documento gerado com auxílio do Echo Scribe v1.1.0*`,
+
+        resumo: `Você é um redator executivo especializado em sínteses e resumos corporativos.
+Sua tarefa é transformar o texto bruto fornecido em um Resumo Executivo claro e conciso.
+
+O documento DEVE seguir esta estrutura em Markdown:
+
+# [Título do Resumo]
+
+## Contexto
+Apresente o contexto geral em 2–3 parágrafos.
+
+## Pontos-Chave
+- Liste os pontos mais relevantes como bullet points
+- Cada ponto deve ser autocontido e objetivo
+- Priorize por relevância
+
+## Dados e Evidências
+Se o texto original contiver dados quantitativos, organize-os aqui.
+
+## Recomendações
+Liste as ações recomendadas, se aplicável.
+
+## Próximos Passos
+Sugira um caminho de ação baseado na análise.
+
+---
+*Documento gerado com auxílio do Echo Scribe v1.1.0*`,
+
+        minuta: `Você é um redator jurídico especializado em minutas e instrumentos legais.
+Sua tarefa é transformar o texto bruto fornecido em uma Minuta Jurídica formal e bem estruturada.
+
+O documento DEVE seguir esta estrutura em Markdown:
+
+# [Título do Instrumento]
+
+## EPÍGRAFE
+Identifique o tipo de instrumento e sua finalidade.
+
+## PREÂMBULO
+Qualifique as partes envolvidas (se identificáveis no texto).
+
+## CLÁUSULAS
+
+### Cláusula 1ª — Do Objeto
+Defina o objeto.
+
+### Cláusula 2ª — Das Obrigações
+Estabeleça obrigações das partes.
+
+### Cláusula 3ª — Das Condições
+Termos e condições relevantes.
+
+*(Adicione cláusulas conforme necessário)*
+
+## DISPOSIÇÕES GERAIS
+Cláusulas padrão de foro, vigência, etc.
+
+## FECHO
+Local, data e campos para assinaturas.
+
+---
+*Documento gerado com auxílio do Echo Scribe v1.1.0*`,
+      };
+
+      const TONE_MODIFIERS = {
+        tecnico: `
+DIRETRIZES DE TOM:
+- Use linguagem técnica e precisa
+- Empregue terminologia especializada da área
+- Seja objetivo e impessoal (terceira pessoa ou voz passiva)
+- Priorize clareza e rigor na exposição dos fatos
+- Evite coloquialismos e subjetividades`,
+
+        formal: `
+DIRETRIZES DE TOM:
+- Use linguagem formal e culta
+- Empregue construções tradicionais e polidas
+- Mantenha um tom respeitoso e protocolar
+- Use tratamentos adequados (V.Sa., Senhor(a))
+- Priorize elegância e sobriedade na redação`,
+      };
+
+      function buildPrompt(inputText, template, tone) {
+        const systemInstruction = SYSTEM_PROMPTS[template] + '\n' + TONE_MODIFIERS[tone] + `
+
+REGRAS GERAIS:
+- Limpe vícios de linguagem (hm, é..., aí, né, tipo)
+- Corrija erros gramaticais e de concordância
+- Remova repetições desnecessárias
+- Mantenha TODOS os fatos e dados do texto original
+- NÃO invente informações que não estejam no texto
+- Responda SEMPRE em Português do Brasil
+- Formate o resultado em Markdown`;
+
+        const userPrompt = `Transforme o seguinte texto bruto em um documento estruturado conforme as instruções:\n\n---\n${inputText}\n---`;
+        return { systemInstruction, userPrompt };
+      }
+
+      // ============================================
+      // API MODULE
+      // ============================================
+      const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+      const MODEL_TEXT = 'gemini-2.5-flash';
+      const MODEL_AUDIO = 'gemini-2.5-flash';
+      const STORAGE_KEY = 'echo_scribe_api_key';
+
+      function saveApiKey(key) {
+        if (!key || typeof key !== 'string') return;
+        sessionStorage.setItem(STORAGE_KEY, key.trim());
+      }
+
+      function getApiKey() {
+        return sessionStorage.getItem(STORAGE_KEY);
+      }
+
+      function clearApiKey() {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+
+      function hasApiKey() {
+        var key = getApiKey();
+        return !!key && key.length > 10;
+      }
+
+      async function validateApiKey() {
+        var key = getApiKey();
+        if (!key) return false;
+
+        try {
+          var response = await fetch(
+            API_BASE + '/' + MODEL_TEXT + ':generateContent?key=' + key,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: 'Responda apenas: OK' }] }],
+                generationConfig: { maxOutputTokens: 5 },
+              }),
+            }
+          );
+          // 429 = quota exceeded, but the key IS valid
+          if (response.ok || response.status === 429) {
+            return true;
+          }
+          var errBody = '';
+          try { errBody = await response.text(); } catch (e) { }
+          console.error('API validation failed:', response.status, errBody);
+
+          if (response.status === 400) {
+            showToast('Chave inválida ou formato incorreto. Verifique se copiou corretamente.', 'error', 6000);
+          } else if (response.status === 401 || response.status === 403) {
+            showToast('Chave sem permissão. Gere uma nova chave em aistudio.google.com/apikey', 'error', 6000);
+          }
+          return false;
+        } catch (e) {
+          console.error('API validation error:', e);
+          showToast('Erro de conexão. Verifique sua internet e tente novamente.', 'error', 5000);
+          return false;
+        }
+      }
+
+      async function callGemini(systemInstruction, userPrompt) {
+        var key = getApiKey();
+        if (!key) {
+          throw new Error('Chave de API não configurada. Clique no ⚙️ para inserir sua chave.');
+        }
+
+        var requestBody = {
+          system_instruction: {
+            parts: [{ text: systemInstruction }],
+          },
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: userPrompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            topP: 0.9,
+            topK: 40,
+            maxOutputTokens: 8192,
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        };
+
+        var response = await fetch(
+          API_BASE + '/' + MODEL_TEXT + ':generateContent?key=' + key,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        if (!response.ok) {
+          var errorData = {};
+          try { errorData = await response.json(); } catch (e) { }
+          var message = (errorData.error && errorData.error.message) || ('Erro HTTP ' + response.status);
+
+          if (response.status === 400) {
+            throw new Error('Requisição inválida: ' + message);
+          } else if (response.status === 401 || response.status === 403) {
+            throw new Error('Chave de API inválida ou sem permissão. Verifique sua chave.');
+          } else if (response.status === 429) {
+            throw new Error('Limite de requisições atingido. Aguarde alguns segundos e tente novamente.');
+          } else if (response.status >= 500) {
+            throw new Error('Erro no servidor do Google. Tente novamente em instantes.');
+          } else {
+            throw new Error('Falha na API: ' + message);
+          }
+        }
+
+        var data = await response.json();
+        var candidate = data.candidates && data.candidates[0];
+        if (!candidate) {
+          throw new Error('A API não retornou conteúdo. O texto pode ter sido bloqueado por filtros de segurança.');
+        }
+
+        var text = (candidate.content && candidate.content.parts)
+          ? candidate.content.parts.map(function (p) { return p.text; }).join('')
+          : '';
+
+        if (!text.trim()) {
+          throw new Error('Resposta vazia da API. Tente novamente com um texto diferente.');
+        }
+
+        return text;
+      }
+
+      // ============================================
+      // AUDIO TRANSCRIPTION MODULE
+      // ============================================
+      async function transcribeAudio(audioBlob) {
+        var key = getApiKey();
+        if (!key) {
+          throw new Error('Chave de API não configurada. Clique no ⚙️ para inserir sua chave.');
+        }
+
+        // Convert blob to base64
+        var base64Audio = await blobToBase64(audioBlob);
+
+        var requestBody = {
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inline_data: {
+                    mime_type: audioBlob.type || 'audio/webm',
+                    data: base64Audio,
+                  },
+                },
+                {
+                  text: 'Transcreva este áudio fielmente em Português do Brasil. Retorne APENAS o texto transcrito, sem formatação Markdown, sem comentários, sem explicações. Se houver múltiplos falantes, indique com "Falante 1:", "Falante 2:", etc.',
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        };
+
+        var response = await fetch(
+          API_BASE + '/' + MODEL_AUDIO + ':generateContent?key=' + key,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+          }
+        );
+
+        if (!response.ok) {
+          var errorData = {};
+          try { errorData = await response.json(); } catch (e) { }
+          var message = (errorData.error && errorData.error.message) || ('Erro HTTP ' + response.status);
+
+          if (response.status === 429) {
+            throw new Error('Limite de requisições atingido. Aguarde e tente novamente.');
+          }
+          throw new Error('Erro na transcrição: ' + message);
+        }
+
+        var data = await response.json();
+        var candidate = data.candidates && data.candidates[0];
+        if (!candidate) {
+          throw new Error('Não foi possível transcrever o áudio. Tente gravar novamente.');
+        }
+
+        var text = (candidate.content && candidate.content.parts)
+          ? candidate.content.parts.map(function (p) { return p.text; }).join('')
+          : '';
+
+        if (!text.trim()) {
+          throw new Error('Transcrição vazia. O áudio pode estar muito baixo ou sem fala.');
+        }
+
+        return text.trim();
+      }
+
+      function blobToBase64(blob) {
+        return new Promise(function (resolve, reject) {
+          var reader = new FileReader();
+          reader.onloadend = function () {
+            // Remove the data URL prefix (data:audio/webm;base64,)
+            var base64 = reader.result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      // ============================================
+      // AUDIO RECORDING MODULE
+      // ============================================
+      var mediaRecorder = null;
+      var audioChunks = [];
+      var recordingStartTime = null;
+      var recordingTimerInterval = null;
+
+      async function startRecording() {
+        try {
+          var stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+          // Prefer webm/opus (supported by Gemini), fallback to whatever is available
+          var mimeType = 'audio/webm;codecs=opus';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(mimeType)) {
+              mimeType = ''; // Let browser decide
+            }
+          }
+
+          audioChunks = [];
+          mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType: mimeType } : {});
+
+          mediaRecorder.ondataavailable = function (e) {
+            if (e.data.size > 0) {
+              audioChunks.push(e.data);
+            }
+          };
+
+          mediaRecorder.onstop = function () {
+            // Stop all tracks
+            stream.getTracks().forEach(function (track) { track.stop(); });
+          };
+
+          mediaRecorder.start(1000); // Collect data every second
+          recordingStartTime = Date.now();
+          startRecordingTimer();
+          return true;
+        } catch (err) {
+          console.error('Microphone error:', err);
+          if (err.name === 'NotAllowedError') {
+            throw new Error('Permissão do microfone negada. Permita o acesso ao microfone nas configurações do navegador.');
+          } else if (err.name === 'NotFoundError') {
+            throw new Error('Nenhum microfone encontrado. Conecte um microfone e tente novamente.');
+          } else {
+            throw new Error('Erro ao acessar microfone: ' + err.message);
+          }
+        }
+      }
+
+      function stopRecording() {
+        return new Promise(function (resolve) {
+          if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+            resolve(null);
+            return;
+          }
+
+          mediaRecorder.onstop = function () {
+            // Stop all tracks
+            if (mediaRecorder.stream) {
+              mediaRecorder.stream.getTracks().forEach(function (track) { track.stop(); });
+            }
+            var blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+            stopRecordingTimer();
+            resolve(blob);
+          };
+
+          mediaRecorder.stop();
+        });
+      }
+
+      function startRecordingTimer() {
+        var timerEl = document.getElementById('recording-timer');
+        recordingTimerInterval = setInterval(function () {
+          var elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+          var mins = String(Math.floor(elapsed / 60)).padStart(2, '0');
+          var secs = String(elapsed % 60).padStart(2, '0');
+          if (timerEl) timerEl.textContent = mins + ':' + secs;
+        }, 1000);
+      }
+
+      function stopRecordingTimer() {
+        if (recordingTimerInterval) {
+          clearInterval(recordingTimerInterval);
+          recordingTimerInterval = null;
+        }
+      }
+
+      // ============================================
+      // UI MODULE
+      // ============================================
+      function showToast(message, type, duration) {
+        type = type || 'success';
+        duration = duration || 4000;
+        var container = document.getElementById('toast-container');
+        if (!container) return;
+
+        var icons = { success: '✓', error: '✕', warning: '⚠' };
+        var toast = document.createElement('div');
+        toast.className = 'toast ' + type;
+        toast.innerHTML = '<span>' + (icons[type] || '') + '</span><span>' + message + '</span>';
+        container.appendChild(toast);
+
+        setTimeout(function () {
+          toast.classList.add('toast-out');
+          toast.addEventListener('animationend', function () { toast.remove(); });
+        }, duration);
+      }
+
+      function showLoading() {
+        var skeleton = document.getElementById('skeleton-loader');
+        var outputContent = document.getElementById('output-content');
+        if (skeleton) skeleton.classList.add('active');
+        if (outputContent) outputContent.style.display = 'none';
+      }
+
+      function hideLoading() {
+        var skeleton = document.getElementById('skeleton-loader');
+        var outputContent = document.getElementById('output-content');
+        if (skeleton) skeleton.classList.remove('active');
+        if (outputContent) outputContent.style.display = '';
+      }
+
+      function renderOutput(markdown) {
+        var outputContent = document.getElementById('output-content');
+        if (!outputContent) return;
+
+        if (typeof marked !== 'undefined') {
+          outputContent.innerHTML = marked.parse(markdown);
+        } else {
+          outputContent.innerHTML = '<pre style="white-space: pre-wrap;">' + escapeHtml(markdown) + '</pre>';
+        }
+        outputContent.classList.remove('empty');
+        outputContent.dataset.rawMarkdown = markdown;
+      }
+
+      function clearOutput() {
+        var outputContent = document.getElementById('output-content');
+        if (!outputContent) return;
+        outputContent.innerHTML = '<span>O documento processado aparecerá aqui...</span>';
+        outputContent.classList.add('empty');
+        outputContent.dataset.rawMarkdown = '';
+      }
+
+      async function copyToClipboard() {
+        var outputContent = document.getElementById('output-content');
+        var raw = outputContent && outputContent.dataset.rawMarkdown;
+        if (!raw) {
+          showToast('Nenhum conteúdo para copiar.', 'warning');
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(raw);
+          showToast('Conteúdo copiado para a área de transferência!', 'success');
+        } catch (e) {
+          var textarea = document.createElement('textarea');
+          textarea.value = raw;
+          textarea.style.cssText = 'position:fixed;opacity:0';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          showToast('Conteúdo copiado!', 'success');
+        }
+      }
+
+      function downloadMarkdown() {
+        var outputContent = document.getElementById('output-content');
+        var raw = outputContent && outputContent.dataset.rawMarkdown;
+        if (!raw) {
+          showToast('Nenhum conteúdo para baixar.', 'warning');
+          return;
+        }
+
+        var blob = new Blob([raw], { type: 'text/markdown;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var timestamp = new Date().toISOString().slice(0, 10);
+        var filename = 'echo-scribe-' + timestamp + '.md';
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showToast('Arquivo "' + filename + '" baixado com sucesso!', 'success');
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function updateCharCount(textarea, countEl) {
+        if (!textarea || !countEl) return;
+        var len = textarea.value.length;
+        countEl.textContent = len.toLocaleString('pt-BR') + ' caracteres';
+      }
+
+      // ============================================
+      // MODAL CONTROLLER
+      // ============================================
+      function openModal(id) {
+        var modal = document.getElementById(id);
+        if (modal) {
+          modal.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+
+      function closeModal(id) {
+        var modal = document.getElementById(id);
+        if (modal) {
+          modal.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+      }
+
+      function openSettingsModal() { openModal('settings-modal'); }
+      function closeSettingsModal() { closeModal('settings-modal'); }
+
+      // ============================================
+      // ROTEIRO MODULE
+      // ============================================
+      var ROTEIRO_STORAGE = 'echo_scribe_roteiros';
+      var currentEditId = null;
+
+      var DEFAULT_ROTEIRO = {
+        id: 'default_pericia',
+        name: 'Perícia Médica Geral',
+        sections: [
+          { title: 'Identificação do Periciando', description: 'Nome, idade, profissão, estado civil, documento de identidade' },
+          { title: 'Histórico da Queixa', description: 'Quando iniciaram os sintomas? Qual o motivo da perícia?' },
+          { title: 'Antecedentes Médicos', description: 'Cirurgias prévias, internações, doenças crônicas, alergias' },
+          { title: 'Medicações em Uso', description: 'Listar todas as medicações atuais, dosagens e frequência' },
+          { title: 'Exame Físico', description: 'Achados do exame clínico, amplitude de movimento, sinais vitais' },
+          { title: 'Exames Complementares', description: 'Laudos de imagem, exames laboratoriais, pareceres especializados' },
+          { title: 'Capacidade Funcional', description: 'Atividades que consegue/não consegue realizar, limitações' },
+          { title: 'Nexo Causal', description: 'Relação entre a condição e o evento/trabalho em questão' },
+          { title: 'Conclusão Pericial', description: 'Impressão diagnóstica e recomendações do perito' },
+        ],
+      };
+
+      function loadRoteiros() {
+        try {
+          var data = localStorage.getItem(ROTEIRO_STORAGE);
+          if (!data) {
+            // First run: seed with default
+            var initial = [DEFAULT_ROTEIRO];
+            localStorage.setItem(ROTEIRO_STORAGE, JSON.stringify(initial));
+            return initial;
+          }
+          return JSON.parse(data);
+        } catch (e) {
+          return [DEFAULT_ROTEIRO];
+        }
+      }
+
+      function saveRoteiros(list) {
+        localStorage.setItem(ROTEIRO_STORAGE, JSON.stringify(list));
+      }
+
+      function getRoteiro(id) {
+        var list = loadRoteiros();
+        for (var i = 0; i < list.length; i++) {
+          if (list[i].id === id) return list[i];
+        }
+        return null;
+      }
+
+      function populateRoteiroSelect() {
+        var sel = document.getElementById('roteiro-select');
+        if (!sel) return;
+        var current = sel.value;
+        sel.innerHTML = '<option value="">— Sem roteiro —</option>';
+        var list = loadRoteiros();
+        list.forEach(function (r) {
+          var opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = '📋 ' + r.name + ' (' + r.sections.length + ' seções)';
+          sel.appendChild(opt);
+        });
+        sel.value = current || '';
+        updateRoteiroButtons();
+        updateRoteiroPreview();
+      }
+
+      function updateRoteiroButtons() {
+        var sel = document.getElementById('roteiro-select');
+        var hasSelection = sel && sel.value;
+        var editBtn = document.getElementById('roteiro-edit-btn');
+        var deleteBtn = document.getElementById('roteiro-delete-btn');
+        if (editBtn) editBtn.disabled = !hasSelection;
+        if (deleteBtn) deleteBtn.disabled = !hasSelection;
+      }
+
+      var previewCheckState = {};
+
+      function updateRoteiroPreview() {
+        var sel = document.getElementById('roteiro-select');
+        var preview = document.getElementById('roteiro-preview');
+        if (!sel || !preview) return;
+        var roteiro = getRoteiro(sel.value);
+        if (!roteiro) {
+          preview.style.display = 'none';
+          previewCheckState = {};
+          return;
+        }
+        preview.style.display = '';
+        previewCheckState = {};
+
+        var html = '<div class="roteiro-preview-header">';
+        html += '<div class="roteiro-preview-title">' + escapeHtml(roteiro.name) + '</div>';
+        html += '<span id="preview-progress" class="preview-progress">0/' + roteiro.sections.length + ' perguntadas</span>';
+        html += '</div>';
+        html += '<div class="roteiro-preview-sections">';
+        roteiro.sections.forEach(function (s, i) {
+          previewCheckState[i] = false;
+          html += '<div class="roteiro-preview-item" data-preview-idx="' + i + '" role="button" tabindex="0" title="Clique para marcar como perguntada">';
+          html += '<span class="preview-check">⬜</span>';
+          html += '<span class="preview-num">' + (i + 1) + '</span>';
+          html += '<div><strong>' + escapeHtml(s.title) + '</strong>';
+          if (s.description) html += '<br><small>' + escapeHtml(s.description) + '</small>';
+          html += '</div></div>';
+        });
+        html += '</div>';
+        preview.innerHTML = html;
+
+        // Add click handlers
+        var items = preview.querySelectorAll('.roteiro-preview-item');
+        items.forEach(function (item) {
+          item.addEventListener('click', function () {
+            var idx = parseInt(item.dataset.previewIdx);
+            togglePreviewCheck(idx);
+          });
+          item.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              var idx = parseInt(item.dataset.previewIdx);
+              togglePreviewCheck(idx);
+            }
+          });
+        });
+      }
+
+      function togglePreviewCheck(idx) {
+        previewCheckState[idx] = !previewCheckState[idx];
+        var items = document.querySelectorAll('.roteiro-preview-item');
+        items.forEach(function (item) {
+          if (parseInt(item.dataset.previewIdx) === idx) {
+            var check = item.querySelector('.preview-check');
+            if (previewCheckState[idx]) {
+              item.classList.add('asked');
+              if (check) check.textContent = '✅';
+            } else {
+              item.classList.remove('asked');
+              if (check) check.textContent = '⬜';
+            }
+          }
+        });
+        updatePreviewProgress();
+      }
+
+      function updatePreviewProgress() {
+        var keys = Object.keys(previewCheckState);
+        var total = keys.length;
+        var done = keys.filter(function (k) { return previewCheckState[k]; }).length;
+        var el = document.getElementById('preview-progress');
+        if (el) el.textContent = done + '/' + total + ' perguntadas';
+      }
+
+
+      // --- Roteiro Modal ---
+      function openRoteiroModal(editId) {
+        currentEditId = editId || null;
+        var titleEl = document.getElementById('roteiro-modal-title');
+        var nameInput = document.getElementById('roteiro-name-input');
+        var sectionsList = document.getElementById('roteiro-sections-list');
+
+        if (editId) {
+          var roteiro = getRoteiro(editId);
+          if (!roteiro) return;
+          if (titleEl) titleEl.textContent = '✏️ Editar Roteiro';
+          if (nameInput) nameInput.value = roteiro.name;
+          if (sectionsList) {
+            sectionsList.innerHTML = '';
+            roteiro.sections.forEach(function (s) {
+              addSectionRow(s.title, s.description);
+            });
+          }
+        } else {
+          if (titleEl) titleEl.textContent = '📋 Novo Roteiro';
+          if (nameInput) nameInput.value = '';
+          if (sectionsList) sectionsList.innerHTML = '';
+          addSectionRow('', '');
+        }
+
+        openModal('roteiro-modal');
+      }
+
+      function addSectionRow(title, description) {
+        var list = document.getElementById('roteiro-sections-list');
+        if (!list) return;
+        var row = document.createElement('div');
+        row.className = 'roteiro-section-row';
+        row.innerHTML = '<div class="section-row-handle">☰</div>' +
+          '<div class="section-row-fields">' +
+          '<input type="text" class="form-input section-title-input" placeholder="Título da seção" value="' + escapeHtml(title || '') + '">' +
+          '<input type="text" class="form-input section-desc-input" placeholder="Descrição / pergunta guia (opcional)" value="' + escapeHtml(description || '') + '">' +
+          '</div>' +
+          '<button class="btn btn-icon btn-sm section-remove-btn" type="button" title="Remover seção">✕</button>';
+        row.querySelector('.section-remove-btn').addEventListener('click', function () {
+          row.remove();
+        });
+        list.appendChild(row);
+      }
+
+      function saveCurrentRoteiro() {
+        var nameInput = document.getElementById('roteiro-name-input');
+        var name = nameInput ? nameInput.value.trim() : '';
+        if (!name) {
+          showToast('Insira um nome para o roteiro.', 'warning');
+          return;
+        }
+
+        var sectionRows = document.querySelectorAll('.roteiro-section-row');
+        var sections = [];
+        sectionRows.forEach(function (row) {
+          var title = row.querySelector('.section-title-input');
+          var desc = row.querySelector('.section-desc-input');
+          var t = title ? title.value.trim() : '';
+          if (t) {
+            sections.push({ title: t, description: desc ? desc.value.trim() : '' });
+          }
+        });
+
+        if (sections.length === 0) {
+          showToast('Adicione pelo menos uma seção ao roteiro.', 'warning');
+          return;
+        }
+
+        var list = loadRoteiros();
+        if (currentEditId) {
+          // Update existing
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].id === currentEditId) {
+              list[i].name = name;
+              list[i].sections = sections;
+              break;
+            }
+          }
+        } else {
+          // Create new
+          var newRoteiro = {
+            id: 'roteiro_' + Date.now(),
+            name: name,
+            sections: sections,
+          };
+          list.push(newRoteiro);
+          // Select the new one
+          setTimeout(function () {
+            var sel = document.getElementById('roteiro-select');
+            if (sel) sel.value = newRoteiro.id;
+            updateRoteiroButtons();
+            updateRoteiroPreview();
+          }, 100);
+        }
+
+        saveRoteiros(list);
+        populateRoteiroSelect();
+        closeModal('roteiro-modal');
+        showToast('Roteiro "' + name + '" salvo com sucesso!', 'success');
+      }
+
+      function deleteSelectedRoteiro() {
+        var sel = document.getElementById('roteiro-select');
+        if (!sel || !sel.value) return;
+        var roteiro = getRoteiro(sel.value);
+        if (!roteiro) return;
+        if (!confirm('Excluir o roteiro "' + roteiro.name + '"?')) return;
+
+        var list = loadRoteiros().filter(function (r) { return r.id !== sel.value; });
+        saveRoteiros(list);
+        sel.value = '';
+        populateRoteiroSelect();
+        showToast('Roteiro excluído.', 'success');
+      }
+
+      // --- Live Checklist ---
+      var checklistState = {};
+
+      function showLiveChecklist() {
+        var sel = document.getElementById('roteiro-select');
+        var checklist = document.getElementById('live-checklist');
+        if (!sel || !sel.value || !checklist) {
+          if (checklist) checklist.style.display = 'none';
+          return;
+        }
+
+        var roteiro = getRoteiro(sel.value);
+        if (!roteiro) { checklist.style.display = 'none'; return; }
+
+        checklistState = {};
+        var items = document.getElementById('checklist-items');
+        if (!items) return;
+
+        items.innerHTML = '';
+        roteiro.sections.forEach(function (s, i) {
+          checklistState[i] = false;
+          var item = document.createElement('div');
+          item.className = 'checklist-item';
+          item.dataset.index = i;
+          item.innerHTML = '<button class="checklist-check" type="button" data-idx="' + i + '" aria-label="Marcar seção">' +
+            '<span class="check-icon">⬜</span></button>' +
+            '<div class="checklist-item-text">' +
+            '<span class="checklist-item-title">' + escapeHtml(s.title) + '</span>' +
+            (s.description ? '<span class="checklist-item-desc">' + escapeHtml(s.description) + '</span>' : '') +
+            '</div>';
+          item.querySelector('.checklist-check').addEventListener('click', function () {
+            toggleChecklistItem(i);
+          });
+          items.appendChild(item);
+        });
+
+        updateChecklistProgress();
+        checklist.style.display = '';
+      }
+
+      function hideLiveChecklist() {
+        var checklist = document.getElementById('live-checklist');
+        if (checklist) checklist.style.display = 'none';
+      }
+
+      function toggleChecklistItem(idx) {
+        checklistState[idx] = !checklistState[idx];
+        var items = document.querySelectorAll('.checklist-item');
+        items.forEach(function (item) {
+          if (parseInt(item.dataset.index) === idx) {
+            var icon = item.querySelector('.check-icon');
+            if (checklistState[idx]) {
+              item.classList.add('checked');
+              if (icon) icon.textContent = '✅';
+            } else {
+              item.classList.remove('checked');
+              if (icon) icon.textContent = '⬜';
+            }
+          }
+        });
+        updateChecklistProgress();
+      }
+
+      function updateChecklistProgress() {
+        var keys = Object.keys(checklistState);
+        var total = keys.length;
+        var done = keys.filter(function (k) { return checklistState[k]; }).length;
+        var progressEl = document.getElementById('checklist-progress');
+        var fillEl = document.getElementById('checklist-progress-fill');
+        if (progressEl) progressEl.textContent = done + '/' + total;
+        if (fillEl) fillEl.style.width = (total > 0 ? (done / total * 100) : 0) + '%';
+      }
+
+      // ============================================
+      // MAIN APP CONTROLLER
+      // ============================================
+      var apiKeyInput, apiStatus, apiSaveBtn, apiDisconnectBtn;
+      var inputTextarea, charCount, fileInput;
+      var templateSelect, toneSelect, processBtn;
+      var copyBtn, downloadBtn, clearBtn;
+      var settingsBtn, recordBtn, stopRecordBtn;
+      var recordingBar, transcriptionBar, headerStatusDot;
+      var isProcessing = false;
+      var isRecording = false;
+
+      document.addEventListener('DOMContentLoaded', function () {
+        cacheElements();
+        populateSelects();
+        populateRoteiroSelect();
+        attachEventListeners();
+        restoreApiKeyState();
+      });
+
+      function cacheElements() {
+        apiKeyInput = document.getElementById('api-key-input');
+        apiStatus = document.getElementById('api-status');
+        apiSaveBtn = document.getElementById('api-save-btn');
+        apiDisconnectBtn = document.getElementById('api-disconnect-btn');
+        inputTextarea = document.getElementById('input-textarea');
+        charCount = document.getElementById('char-count');
+        fileInput = document.getElementById('file-input');
+        templateSelect = document.getElementById('template-select');
+        toneSelect = document.getElementById('tone-select');
+        processBtn = document.getElementById('process-btn');
+        copyBtn = document.getElementById('copy-btn');
+        downloadBtn = document.getElementById('download-btn');
+        clearBtn = document.getElementById('clear-btn');
+        settingsBtn = document.getElementById('settings-btn');
+        recordBtn = document.getElementById('record-btn');
+        stopRecordBtn = document.getElementById('stop-record-btn');
+        recordingBar = document.getElementById('recording-bar');
+        transcriptionBar = document.getElementById('transcription-bar');
+        headerStatusDot = document.getElementById('header-status-dot');
+      }
+
+      function populateSelects() {
+        if (templateSelect) {
+          templateSelect.innerHTML = '';
+          for (var key in TEMPLATES) {
+            var tmpl = TEMPLATES[key];
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = tmpl.icon + '  ' + tmpl.label;
+            templateSelect.appendChild(opt);
+          }
+        }
+
+        if (toneSelect) {
+          toneSelect.innerHTML = '';
+          for (var key in TONES) {
+            var tone = TONES[key];
+            var opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = tone.icon + '  ' + tone.label;
+            toneSelect.appendChild(opt);
+          }
+        }
+      }
+
+      function attachEventListeners() {
+        // Settings modal
+        if (settingsBtn) settingsBtn.addEventListener('click', openSettingsModal);
+        var modalCloseBtn = document.getElementById('modal-close-btn');
+        if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeSettingsModal);
+
+        // Close modal on overlay click
+        var modalOverlay = document.getElementById('settings-modal');
+        if (modalOverlay) {
+          modalOverlay.addEventListener('click', function (e) {
+            if (e.target === modalOverlay) closeSettingsModal();
+          });
+        }
+
+        // Close modals on Escape
+        document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            closeSettingsModal();
+            closeModal('roteiro-modal');
+          }
+        });
+
+        // API Key
+        if (apiSaveBtn) apiSaveBtn.addEventListener('click', handleSaveApiKey);
+        if (apiDisconnectBtn) apiDisconnectBtn.addEventListener('click', handleDisconnect);
+        if (apiKeyInput) apiKeyInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') handleSaveApiKey();
+        });
+
+        // Roteiro
+        var roteiroSel = document.getElementById('roteiro-select');
+        if (roteiroSel) roteiroSel.addEventListener('change', function () {
+          updateRoteiroButtons();
+          updateRoteiroPreview();
+        });
+        var roteiroNewBtn = document.getElementById('roteiro-new-btn');
+        if (roteiroNewBtn) roteiroNewBtn.addEventListener('click', function () { openRoteiroModal(null); });
+        var roteiroEditBtn = document.getElementById('roteiro-edit-btn');
+        if (roteiroEditBtn) roteiroEditBtn.addEventListener('click', function () {
+          var sel = document.getElementById('roteiro-select');
+          if (sel && sel.value) openRoteiroModal(sel.value);
+        });
+        var roteiroDeleteBtn = document.getElementById('roteiro-delete-btn');
+        if (roteiroDeleteBtn) roteiroDeleteBtn.addEventListener('click', deleteSelectedRoteiro);
+        var roteiroAddSection = document.getElementById('roteiro-add-section');
+        if (roteiroAddSection) roteiroAddSection.addEventListener('click', function () { addSectionRow('', ''); });
+        var roteiroSaveBtn = document.getElementById('roteiro-save-btn');
+        if (roteiroSaveBtn) roteiroSaveBtn.addEventListener('click', saveCurrentRoteiro);
+        var roteiroCancelBtn = document.getElementById('roteiro-cancel-btn');
+        if (roteiroCancelBtn) roteiroCancelBtn.addEventListener('click', function () { closeModal('roteiro-modal'); });
+        var roteiroModalClose = document.getElementById('roteiro-modal-close');
+        if (roteiroModalClose) roteiroModalClose.addEventListener('click', function () { closeModal('roteiro-modal'); });
+        var roteiroModalOverlay = document.getElementById('roteiro-modal');
+        if (roteiroModalOverlay) {
+          roteiroModalOverlay.addEventListener('click', function (e) {
+            if (e.target === roteiroModalOverlay) closeModal('roteiro-modal');
+          });
+        }
+
+        // Input
+        if (inputTextarea) inputTextarea.addEventListener('input', function () {
+          updateCharCount(inputTextarea, charCount);
+        });
+        if (fileInput) fileInput.addEventListener('change', handleFileUpload);
+
+        // Audio Recording
+        if (recordBtn) recordBtn.addEventListener('click', handleStartRecording);
+        if (stopRecordBtn) stopRecordBtn.addEventListener('click', handleStopRecording);
+
+        // Process
+        if (processBtn) processBtn.addEventListener('click', handleProcess);
+        if (copyBtn) copyBtn.addEventListener('click', copyToClipboard);
+        if (downloadBtn) downloadBtn.addEventListener('click', downloadMarkdown);
+        if (clearBtn) clearBtn.addEventListener('click', function () {
+          clearOutput();
+          showToast('Saída limpa.', 'success');
+        });
+
+        document.addEventListener('keydown', function (e) {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            handleProcess();
+          }
+        });
+      }
+
+      // --- API Key Management ---
+      function restoreApiKeyState() {
+        if (hasApiKey()) {
+          setApiConnected();
+        } else {
+          setApiDisconnected();
+        }
+      }
+
+      async function handleSaveApiKey() {
+        var key = apiKeyInput ? apiKeyInput.value.trim() : '';
+        if (!key) {
+          showToast('Insira uma chave de API válida.', 'warning');
+          return;
+        }
+
+        apiSaveBtn.disabled = true;
+        apiSaveBtn.textContent = 'Validando...';
+        setApiStatusText('Validando chave...', '');
+
+        saveApiKey(key);
+        var valid = await validateApiKey();
+
+        if (valid) {
+          setApiConnected();
+          apiKeyInput.value = '';
+          showToast('Chave de API conectada com sucesso!', 'success');
+        } else {
+          clearApiKey();
+          setApiDisconnected();
+          setApiStatusText('Chave inválida. Verifique e tente novamente.', 'error');
+          showToast('Chave de API inválida.', 'error');
+        }
+
+        apiSaveBtn.disabled = false;
+        apiSaveBtn.textContent = 'Conectar';
+      }
+
+      function handleDisconnect() {
+        clearApiKey();
+        setApiDisconnected();
+        showToast('Chave de API removida com segurança.', 'success');
+      }
+
+      function setApiConnected() {
+        var maskedKey = maskKey(getApiKey());
+        setApiStatusText('Conectado • ' + maskedKey, 'connected');
+        if (apiKeyInput) apiKeyInput.style.display = 'none';
+        if (apiSaveBtn) apiSaveBtn.style.display = 'none';
+        if (apiDisconnectBtn) apiDisconnectBtn.style.display = '';
+        if (processBtn) processBtn.disabled = false;
+        if (headerStatusDot) {
+          headerStatusDot.className = 'header-status-dot connected';
+          headerStatusDot.title = 'Conectado';
+        }
+      }
+
+      function setApiDisconnected() {
+        setApiStatusText('Desconectado — insira sua chave do Google AI Studio', '');
+        if (apiKeyInput) { apiKeyInput.style.display = ''; apiKeyInput.value = ''; }
+        if (apiSaveBtn) apiSaveBtn.style.display = '';
+        if (apiDisconnectBtn) apiDisconnectBtn.style.display = 'none';
+        if (processBtn) processBtn.disabled = true;
+        if (headerStatusDot) {
+          headerStatusDot.className = 'header-status-dot disconnected';
+          headerStatusDot.title = 'Desconectado — clique em ⚙️ para configurar';
+        }
+      }
+
+      function setApiStatusText(msg, cls) {
+        if (!apiStatus) return;
+        apiStatus.className = 'api-status ' + (cls || '');
+        apiStatus.innerHTML = '<span class="status-dot"></span><span>' + msg + '</span>';
+      }
+
+      function maskKey(key) {
+        if (!key || key.length < 8) return '••••••••';
+        return key.slice(0, 4) + '••••••••' + key.slice(-4);
+      }
+
+      // --- Audio Recording ---
+      async function handleStartRecording() {
+        if (isRecording) return;
+        if (!hasApiKey()) {
+          showToast('Configure sua chave de API primeiro. Clique em ⚙️', 'warning');
+          return;
+        }
+
+        try {
+          await startRecording();
+          isRecording = true;
+
+          // Update UI
+          if (recordBtn) recordBtn.classList.add('recording');
+          if (recordingBar) recordingBar.style.display = '';
+          var timerEl = document.getElementById('recording-timer');
+          if (timerEl) timerEl.textContent = '00:00';
+
+          // Show live checklist if roteiro selected
+          showLiveChecklist();
+
+          showToast('Gravação iniciada. Fale no microfone.', 'success');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      }
+
+      async function handleStopRecording() {
+        if (!isRecording) return;
+        isRecording = false;
+
+        // Update UI
+        if (recordBtn) recordBtn.classList.remove('recording');
+        if (recordingBar) recordingBar.style.display = 'none';
+        // Keep checklist visible after recording stops (don't hide)
+
+        showToast('Gravação finalizada. Transcrevendo...', 'success');
+
+        try {
+          var audioBlob = await stopRecording();
+          if (!audioBlob || audioBlob.size < 1000) {
+            showToast('Gravação muito curta. Tente gravar por mais tempo.', 'warning');
+            return;
+          }
+
+          // Show transcription indicator
+          if (transcriptionBar) transcriptionBar.style.display = '';
+
+          var transcribedText = await transcribeAudio(audioBlob);
+
+          // Hide transcription indicator
+          if (transcriptionBar) transcriptionBar.style.display = 'none';
+
+          // Append to textarea
+          if (inputTextarea) {
+            var existing = inputTextarea.value.trim();
+            if (existing) {
+              inputTextarea.value = existing + '\n\n' + transcribedText;
+            } else {
+              inputTextarea.value = transcribedText;
+            }
+            updateCharCount(inputTextarea, charCount);
+          }
+
+          showToast('Áudio transcrito com sucesso!', 'success');
+        } catch (err) {
+          if (transcriptionBar) transcriptionBar.style.display = 'none';
+          showToast(err.message || 'Erro ao transcrever áudio.', 'error');
+        }
+      }
+
+      // --- File Upload ---
+      async function handleFileUpload(e) {
+        var file = e.target && e.target.files && e.target.files[0];
+        if (!file) return;
+
+        var MAX_SIZE = 5 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+          showToast('Arquivo muito grande. Limite: 5MB.', 'error');
+          return;
+        }
+
+        try {
+          var text = await file.text();
+          if (inputTextarea) {
+            inputTextarea.value = text;
+            updateCharCount(inputTextarea, charCount);
+            showToast('Arquivo "' + file.name + '" carregado com sucesso!', 'success');
+          }
+        } catch (e) {
+          showToast('Erro ao ler o arquivo. Tente um .txt ou .md.', 'error');
+        }
+
+        if (fileInput) fileInput.value = '';
+      }
+
+      // --- Process ---
+      async function handleProcess() {
+        if (isProcessing) return;
+
+        if (!hasApiKey()) {
+          showToast('Configure sua chave de API primeiro. Clique em ⚙️', 'warning');
+          return;
+        }
+
+        var text = inputTextarea ? inputTextarea.value.trim() : '';
+        if (!text) {
+          showToast('Cole ou digite o texto bruto no campo de entrada.', 'warning');
+          if (inputTextarea) inputTextarea.focus();
+          return;
+        }
+
+        if (text.length < 20) {
+          showToast('Texto muito curto. Forneça mais conteúdo para processar.', 'warning');
+          return;
+        }
+
+        var template = templateSelect ? templateSelect.value : 'relatorio';
+        var tone = toneSelect ? toneSelect.value : 'tecnico';
+
+        isProcessing = true;
+        processBtn.disabled = true;
+        processBtn.innerHTML = '<span class="spinner"></span> Processando...';
+        showLoading();
+
+        try {
+          var prompt = buildPrompt(text, template, tone);
+          var result = await callGemini(prompt.systemInstruction, prompt.userPrompt);
+
+          hideLoading();
+          renderOutput(result);
+          showToast('Documento gerado com sucesso!', 'success');
+        } catch (error) {
+          hideLoading();
+          clearOutput();
+          showToast(error.message || 'Erro ao processar. Tente novamente.', 'error');
+        } finally {
+          isProcessing = false;
+          processBtn.disabled = false;
+          processBtn.innerHTML = '✨ Refinar Escrita';
+        }
+      }
+
+    })();
+  </script>
+</body>
+
+</html>
